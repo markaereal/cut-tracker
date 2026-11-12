@@ -89,6 +89,33 @@ tbody tr:nth-child(odd){background:#F6F7F4}
 .solid:active{transform:scale(.97)}
 .file{position:relative;display:inline-block}
 .file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.routine{margin-top:16px}
+.rhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.rdate{display:flex;gap:6px;align-items:center}
+.rdate input{font-size:16px;padding:9px 10px;border:0;border-radius:var(--r);background:var(--sunk);min-width:0}
+.icon{padding:10px 12px;line-height:0}
+h3{font-size:16px;margin:0 0 10px;font-weight:700}
+.rcols{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-top:6px}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.checks label{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:var(--r);background:var(--ground);cursor:pointer;font-weight:500;transition:background-color 160ms ease,transform 160ms var(--ease-out);overflow-wrap:anywhere}
+.checks label:active{transform:scale(.98)}
+.checks input[type=checkbox]{width:22px;height:22px;accent-color:var(--ink);flex:none;margin:0}
+.checks .done{background:var(--sunk);color:var(--ink2)}
+.checks .edit{display:flex;gap:6px}
+.checks .edit input{flex:1;font-size:16px;padding:10px 12px;border:0;border-radius:var(--r);background:var(--sunk);min-width:0}
+.checks .edit button{padding:10px 12px;font-size:14px}
+.rg-title{margin-top:26px}
+.rgrid{overflow-x:auto}
+.rgrid table{border-collapse:separate;border-spacing:3px;width:auto}
+.rgrid td,.rgrid th{padding:0;text-align:left;white-space:nowrap}
+.rgrid th{font-weight:500;font-size:12px;color:var(--ink2);text-align:center;width:18px}
+.rgrid td.nm{font-size:14px;padding-right:10px;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.rgrid td.nm span{color:var(--ink2)}
+.rgrid i{display:block;width:18px;height:18px;border-radius:3px;background:var(--sunk)}
+.rgrid i.y{background:var(--ink)}
+.rgrid tbody tr{background:none!important;cursor:default}
+.rgrid th.sel{color:var(--accent-ink);font-weight:800}
+@media (max-width:640px){.rcols{grid-template-columns:1fr}.rgrid i,.rgrid th{width:14px}.rgrid i{height:14px}.rgrid td.nm{max-width:110px;font-size:13px}}
 .miss{color:var(--faint)}
 .foot{margin-top:72px;font-size:clamp(40px,9vw,120px);font-weight:800;letter-spacing:-.04em;line-height:.9;color:var(--sunk)}
 @media (max-width:860px){
@@ -153,6 +180,24 @@ tbody tr:nth-child(odd){background:#F6F7F4}
       </div>
     </section>
   </div>
+
+  <section class="panel routine" id="routine">
+    <div class="rhead">
+      <div><h2>Routine</h2><p class="sub" id="r-sub">Tick things off as you do them.</p></div>
+      <div class="rdate">
+        <button type="button" class="solid icon" id="r-prev" aria-label="Previous day"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <input type="date" id="r-date" aria-label="Routine day">
+        <button type="button" class="solid icon" id="r-next" aria-label="Next day"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+    <div class="rcols">
+      <div><h3>Morning</h3><ul class="checks" id="r-am"></ul></div>
+      <div><h3>Evening</h3><ul class="checks" id="r-pm"></ul></div>
+    </div>
+    <h3 class="rg-title">Last 14 days</h3>
+    <div class="rgrid" id="r-grid"></div>
+    <div class="actions"><button type="button" class="solid" id="r-edit">Edit items</button></div>
+  </section>
 
   <div class="trio">
     <section class="panel" id="calories">
@@ -467,8 +512,90 @@ tbody tr:nth-child(odd){background:#F6F7F4}
   } catch(e){ say("Your saved log couldn't be read on this device.",1); }
   loadDate(todayStr()); renderAll();
 
+
+  // ---------- routine checklist ----------
+  const RKEY = "cut-routine-v1";
+  const rid = () => Math.random().toString(36).slice(2,9);
+  const defaultItems = () => ({
+    am:["Accutane","Vitamins","Brush teeth","Face wash","Moisturiser","Sunscreen","Lip balm"].map(name=>({id:rid(),name})),
+    pm:["Shower","Brush teeth","Floss","Face wash","Moisturiser","Lip balm"].map(name=>({id:rid(),name}))
+  });
+  let routine = {items:defaultItems(), days:{}};
+  let rEditing = false;
+  try { const raw = localStorage.getItem(RKEY); if(raw){ const r = JSON.parse(raw); if(r && r.items && Array.isArray(r.items.am) && Array.isArray(r.items.pm)) routine = {items:r.items, days:r.days||{}}; } } catch(e){}
+  function rSave(){ try{ localStorage.setItem(RKEY, JSON.stringify(routine)); }catch(e){ say("Couldn't save the routine on this device.",1); } }
+  const rDate = $("r-date");
+  rDate.value = todayStr();
+  function rList(part){
+    const ul = $("r-"+part); ul.textContent = "";
+    const day = routine.days[rDate.value] || {};
+    routine.items[part].forEach((it, idx) => {
+      const li = document.createElement("li");
+      if(rEditing){
+        const row = document.createElement("div"); row.className = "edit";
+        const inp = document.createElement("input"); inp.value = it.name; inp.setAttribute("aria-label","Item name");
+        inp.addEventListener("change", () => { const v = inp.value.trim(); if(v){ it.name = v; rSave(); rGrid(); } else inp.value = it.name; });
+        const del = document.createElement("button"); del.type="button"; del.className="solid"; del.textContent="Remove";
+        del.addEventListener("click", () => { routine.items[part].splice(idx,1); rSave(); rRender(); });
+        row.append(inp, del); li.appendChild(row);
+      } else {
+        const lab = document.createElement("label"); const cb = document.createElement("input"); cb.type="checkbox"; cb.checked = !!day[it.id];
+        const t = document.createElement("span"); t.textContent = it.name;
+        if(cb.checked) lab.classList.add("done");
+        cb.addEventListener("change", () => {
+          const d = routine.days[rDate.value] || (routine.days[rDate.value] = {});
+          if(cb.checked) d[it.id] = true; else delete d[it.id];
+          if(!Object.keys(d).length) delete routine.days[rDate.value];
+          lab.classList.toggle("done", cb.checked); rSave(); rSub(); rGrid();
+        });
+        lab.append(cb, t); li.appendChild(lab);
+      }
+      ul.appendChild(li);
+    });
+    if(rEditing){
+      const li = document.createElement("li"); const row = document.createElement("div"); row.className="edit";
+      const inp = document.createElement("input"); inp.placeholder = part==="am" ? "Add a morning item" : "Add an evening item"; inp.setAttribute("aria-label", inp.placeholder);
+      const add = document.createElement("button"); add.type="button"; add.className="solid"; add.textContent="Add";
+      const go = () => { const v = inp.value.trim(); if(!v) return; routine.items[part].push({id:rid(), name:v}); rSave(); rRender(); const again = $("r-"+part).querySelector("li:last-child input"); if(again) again.focus(); };
+      add.addEventListener("click", go); inp.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); go(); } });
+      row.append(inp, add); li.appendChild(row); ul.appendChild(li);
+    }
+  }
+  function rSub(){
+    const day = routine.days[rDate.value] || {};
+    const c = part => routine.items[part].filter(it=>day[it.id]).length;
+    const label = rDate.value===todayStr() ? "today" : fmtDay(toD(dn(rDate.value)));
+    $("r-sub").textContent = "Morning "+c("am")+" of "+routine.items.am.length+", evening "+c("pm")+" of "+routine.items.pm.length+" done "+label+".";
+  }
+  function rGrid(){
+    const box = $("r-grid"); box.textContent = "";
+    const end = Math.max(dn(rDate.value), dn(todayStr())) , sel = dn(rDate.value);
+    const days = d3.range(end-13, end+1);
+    const tbl = document.createElement("table"), hr = document.createElement("tr");
+    hr.appendChild(document.createElement("th"));
+    days.forEach(n => { const th = document.createElement("th"); th.textContent = d3.utcFormat("%a")(toD(n))[0]; th.title = fmtDay(toD(n)); if(n===sel) th.className = "sel"; hr.appendChild(th); });
+    const thead = document.createElement("thead"); thead.appendChild(hr); tbl.appendChild(thead);
+    const tb = document.createElement("tbody");
+    [["am","AM"],["pm","PM"]].forEach(([part,tag]) => routine.items[part].forEach(it => {
+      const tr = document.createElement("tr"); const nm = document.createElement("td"); nm.className="nm";
+      const sp = document.createElement("span"); sp.textContent = tag+" "; nm.append(sp, document.createTextNode(it.name)); nm.title = it.name; tr.appendChild(nm);
+      days.forEach(n => { const td = document.createElement("td"); const i = document.createElement("i"); const s = ds(n);
+        if((routine.days[s]||{})[it.id]) i.className = "y";
+        i.title = fmtDay(toD(n))+": "+it.name+((routine.days[s]||{})[it.id]?" done":" not done");
+        td.appendChild(i); tr.appendChild(td); });
+      tb.appendChild(tr);
+    }));
+    tbl.appendChild(tb); box.appendChild(tbl);
+  }
+  function rRender(){ rList("am"); rList("pm"); rSub(); rGrid(); $("r-edit").textContent = rEditing ? "Done editing" : "Edit items"; }
+  rDate.addEventListener("change", () => { if(!rDate.value) rDate.value = todayStr(); rRender(); });
+  $("r-prev").addEventListener("click", () => { rDate.value = ds(dn(rDate.value)-1); rRender(); });
+  $("r-next").addEventListener("click", () => { rDate.value = ds(dn(rDate.value)+1); rRender(); });
+  $("r-edit").addEventListener("click", () => { rEditing = !rEditing; rRender(); });
+  rRender();
+
   $("export").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify({app:"cut-tracker", exported:new Date().toISOString(), entries}, null, 1)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify({app:"cut-tracker", exported:new Date().toISOString(), entries, routine}, null, 1)], {type:"application/json"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "cut-log-"+todayStr()+".json";
     document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 1000);
     say("Backup downloaded with "+entries.length+" days.");
@@ -478,8 +605,10 @@ tbody tr:nth-child(odd){background:#F6F7F4}
     try {
       const data = JSON.parse(await f.text());
       const list = (Array.isArray(data) ? data : data.entries || []).map(d=>clean(d||{}, d&&d.date)).filter(Boolean);
-      if(!list.length){ say("That file has no days in it.",1); return; }
+      const r = data && data.routine;
+      if(!list.length && !r){ say("That file has no days in it.",1); return; }
       list.forEach(upsertLocal); persist();
+      if(r && r.items && Array.isArray(r.items.am) && Array.isArray(r.items.pm)){ routine = {items:r.items, days:Object.assign({}, routine.days, r.days||{})}; rSave(); rRender(); }
       say("Restored "+list.length+" days from the backup."); loadDate($("f-date").value || todayStr()); renderAll();
     } catch(e){ say("That file isn't a backup from this page.",1); }
     ev.target.value = "";
