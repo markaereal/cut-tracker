@@ -517,12 +517,18 @@ h3{font-size:16px;margin:0 0 10px;font-weight:700}
   const RKEY = "cut-routine-v1";
   const rid = () => Math.random().toString(36).slice(2,9);
   const defaultItems = () => ({
-    am:["Accutane","Vitamins","Brush teeth","Face wash","Moisturiser","Sunscreen","Lip balm"].map(name=>({id:rid(),name})),
-    pm:["Shower","Brush teeth","Floss","Face wash","Moisturiser","Lip balm"].map(name=>({id:rid(),name}))
+    am:["Accutane","Brush teeth","Face wash","Moisturiser","Sunscreen","Lip balm"].map(name=>({id:rid(),name})),
+    pm:["Shower","Brush teeth","Floss","Face wash","Moisturiser","Lip balm","Vitamins"].map(name=>({id:rid(),name}))
   });
   let routine = {items:defaultItems(), days:{}};
   let rEditing = false;
-  try { const raw = localStorage.getItem(RKEY); if(raw){ const r = JSON.parse(raw); if(r && r.items && Array.isArray(r.items.am) && Array.isArray(r.items.pm)) routine = {items:r.items, days:r.days||{}}; } } catch(e){}
+  try { const raw = localStorage.getItem(RKEY); if(raw){ const r = JSON.parse(raw); if(r && r.items && Array.isArray(r.items.am) && Array.isArray(r.items.pm)) routine = {items:r.items, days:r.days||{}, vitPm:!!r.vitPm}; } } catch(e){}
+  // one-time move: vitamins belong in the evening
+  if(!routine.vitPm){
+    const i = routine.items.am.findIndex(it => it.name.trim().toLowerCase()==="vitamins");
+    if(i>=0 && !routine.items.pm.some(it => it.name.trim().toLowerCase()==="vitamins")) routine.items.pm.push(routine.items.am.splice(i,1)[0]);
+    routine.vitPm = true;
+  }
   function rSave(){ try{ localStorage.setItem(RKEY, JSON.stringify(routine)); }catch(e){ say("Couldn't save the routine on this device.",1); } }
   const rDate = $("r-date");
   rDate.value = todayStr();
