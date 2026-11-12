@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cut">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ECEEEA">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Cut to 67 kg</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root{
+  --ground:#ECEEEA; --panel:#FFFFFF; --sunk:#E2E5DF;
+  --ink:#121412; --ink2:#4B514B; --faint:#9AA19A;
+  --accent:#F2541B; --accent-ink:#B83A0C;
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --r:6px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:Archivo,system-ui,sans-serif;font-size:17px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+::selection{background:var(--accent);color:#fff}
+input,button,select{font:inherit;color:inherit}
+.num,td,input[type=number]{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:calc(32px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left))}
+header h1{font-size:clamp(40px,7vw,84px);line-height:.95;letter-spacing:-.035em;font-weight:800;margin:0 0 14px}
+header p{margin:0;color:var(--ink2);max-width:62ch}
+.finding{font-size:clamp(22px,2.6vw,30px);line-height:1.25;letter-spacing:-.015em;font-weight:500;max-width:34ch;margin:48px 0 18px;text-wrap:balance}
+.finding b{font-weight:800}
+.figs{display:flex;flex-wrap:wrap;gap:8px 32px;margin:0 0 40px;padding:0}
+.figs div{display:flex;flex-direction:column}
+.figs dt{font-size:14px;color:var(--ink2);order:2}
+.figs dd{margin:0;font-size:22px;font-weight:600;order:1}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+.panel{background:var(--panel);border-radius:var(--r);padding:22px}
+h2{font-size:20px;letter-spacing:-.01em;margin:0 0 4px;font-weight:700}
+.sub{margin:0 0 16px;color:var(--ink2);font-size:15px}
+.sub b{color:var(--ink);font-weight:600}
+form label{display:block;font-size:15px;font-weight:600;margin:14px 0 6px}
+form label span{font-weight:400;color:var(--ink2)}
+form input{width:100%;font-size:18px;padding:11px 12px;border:0;border-radius:var(--r);background:var(--sunk);caret-color:var(--accent);min-width:0}
+form input:focus-visible,button:focus-visible,.seg input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pair label{margin-top:14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--sunk);border-radius:var(--r);padding:4px;gap:4px}
+.seg label{margin:0;position:relative}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg span{display:block;text-align:center;padding:9px 0;border-radius:4px;font-weight:600;font-size:16px;cursor:pointer;transition:background-color 160ms ease,color 160ms ease,transform 160ms var(--ease-out)}
+.seg input:checked+span{background:var(--ink);color:#fff}
+.seg span:active{transform:scale(.97)}
+.actions{display:flex;gap:10px;align-items:center;margin-top:20px;flex-wrap:wrap}
+button{border:0;border-radius:var(--r);padding:12px 18px;font-weight:700;cursor:pointer;touch-action:manipulation;transition:transform 160ms var(--ease-out),background-color 160ms ease}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.5;cursor:default;transform:none}
+.primary{background:var(--accent);color:#fff;flex:1}
+@media (hover:hover) and (pointer:fine){.primary:hover{background:var(--accent-ink)}.ghost:hover{background:var(--sunk)}tbody tr:hover{background:var(--ground)}}
+.ghost{background:transparent;color:var(--ink2);padding:12px 10px}
+.status{font-size:15px;color:var(--ink2);min-height:22px;margin:10px 0 0;transition:opacity 200ms ease}
+.status.err{color:var(--accent-ink)}
+.where{font-size:14px;color:var(--ink2);margin:18px 0 0;padding-top:14px;border-top:0;background:none}
+.chart{position:relative;width:100%}
+.chart svg{display:block;overflow:visible}
+.chart .axis text{fill:var(--ink2);font-size:12px;font-family:Archivo,sans-serif}
+.chart .axis path,.chart .axis line{stroke:none}
+.chart .gridline{stroke:var(--sunk)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-size:14px;line-height:1.4;padding:8px 10px;border-radius:4px;white-space:nowrap;opacity:0;transform:translateY(4px);transition:opacity 120ms ease,transform 160ms var(--ease-out);z-index:2}
+.tip.on{opacity:1;transform:none}
+.tip b{font-weight:700}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--ink2);margin:10px 0 0}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px;border-radius:2px}
+.empty{color:var(--ink2);font-size:15px;padding:28px 0}
+table{width:100%;border-collapse:collapse;font-size:16px}
+th{text-align:right;font-weight:600;color:var(--ink2);font-size:14px;padding:8px 10px}
+td{text-align:right;padding:10px;background:transparent;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tbody tr{cursor:pointer;transition:background-color 120ms ease}
+tbody tr:nth-child(odd){background:#F6F7F4}
+.log{margin-top:16px;overflow-x:auto}
+.backup{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.solid{background:var(--sunk);color:var(--ink);font-weight:600;padding:10px 14px;border-radius:var(--r);cursor:pointer;font-size:15px;transition:transform 160ms var(--ease-out)}
+.solid:active{transform:scale(.97)}
+.file{position:relative;display:inline-block}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.miss{color:var(--faint)}
+.foot{margin-top:72px;font-size:clamp(40px,9vw,120px);font-weight:800;letter-spacing:-.04em;line-height:.9;color:var(--sunk)}
+@media (max-width:860px){
+  .grid{grid-template-columns:1fr}
+  .wrap{padding:calc(20px + env(safe-area-inset-top)) 16px calc(72px + env(safe-area-inset-bottom))}
+  .finding{margin-top:32px}
+  td,th{padding:9px 6px;font-size:15px}
+  .panel{padding:18px 16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:1ms!important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>Cut to 67 kg</h1>
+    <p>77 → 67 kg by 1 February. 2100 kcal on gym days, 1800 on rest days, 160 g protein every day, 10–11k steps.</p>
+  </header>
+
+  <p class="finding" id="finding">Loading your log…</p>
+  <dl class="figs" id="figs"></dl>
+
+  <div class="grid">
+    <section class="panel" id="log-day">
+      <h2>Log a day</h2>
+      <p class="sub">Each morning: today's weight, plus yesterday's food, steps and session.</p>
+      <form id="form" autocomplete="off" novalidate>
+        <label for="f-date">Date</label>
+        <input id="f-date" type="date" required>
+        <label for="f-weight">Morning weight <span>kg</span></label>
+        <input id="f-weight" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="e.g. 76.4">
+        <div class="pair">
+          <div><label for="f-kcal">Calories <span>Yazio</span></label>
+          <input id="f-kcal" type="number" inputmode="numeric" step="1" min="0" max="9000" placeholder="1950"></div>
+          <div><label for="f-protein">Protein <span>g</span></label>
+          <input id="f-protein" type="number" inputmode="numeric" step="1" min="0" max="500" placeholder="160"></div>
+        </div>
+        <label for="f-steps">Steps <span>phone</span></label>
+        <input id="f-steps" type="number" inputmode="numeric" step="1" min="0" max="100000" placeholder="10500">
+        <label id="sess-label">Session <span>Hevy</span></label>
+        <div class="seg" role="radiogroup" aria-labelledby="sess-label">
+          <label><input type="radio" name="sess" value="upper"><span>Upper</span></label>
+          <label><input type="radio" name="sess" value="lower"><span>Lower</span></label>
+          <label><input type="radio" name="sess" value="rest"><span>Rest</span></label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary" id="save">Save day</button>
+          <button type="button" class="ghost" id="del" hidden>Delete day</button>
+        </div>
+        <p class="status" id="status" role="status"></p>
+      </form>
+    </section>
+
+    <section class="panel" id="weight">
+      <h2>Weight against the plan</h2>
+      <p class="sub" id="weight-sub">The dashed line is where the plan says you should be each day.</p>
+      <div class="chart" id="weight-chart"></div>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>7-day average</span>
+        <span><i style="background:var(--ink2);width:6px;height:6px;border-radius:50%"></i>Daily weigh-in</span>
+        <span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 4px,transparent 4px 7px)"></i>Plan</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="trio">
+    <section class="panel" id="calories">
+      <h2>Calories</h2>
+      <p class="sub" id="kcal-sub">Last 21 days. Ticks mark each day's target.</p>
+      <div class="chart" id="kcal-chart"></div>
+    </section>
+    <section class="panel" id="protein">
+      <h2>Protein</h2>
+      <p class="sub" id="protein-sub">Last 21 days against 160 g.</p>
+      <div class="chart" id="protein-chart"></div>
+    </section>
+    <section class="panel" id="steps">
+      <h2>Steps</h2>
+      <p class="sub" id="steps-sub">Last 21 days against 10,500.</p>
+      <div class="chart" id="steps-chart"></div>
+    </section>
+  </div>
+
+  <section class="panel log" id="history">
+    <h2>Log</h2>
+    <p class="sub">Tap a day to edit it. Your log is saved on this phone only, so download a backup now and then.</p>
+    <div class="backup">
+      <button type="button" class="ghost solid" id="export">Download backup</button>
+      <label class="ghost solid file">Restore from backup<input type="file" id="import" accept=".json,application/json"></label>
+    </div>
+    <div id="table"></div>
+  </section>
+
+  <div class="foot" aria-hidden="true">77 → 67</div>
+</main>
+
+<script>
+(function(){
+  const PLAN = {start:"2026-11-12", end:"2027-02-01", from:77, to:67, gymKcal:2100, restKcal:1800, protein:160, steps:10500};
+  const DAY = 864e5;
+  const dn = s => { const [y,m,d] = s.split("-").map(Number); return Date.UTC(y,m-1,d)/DAY; };
+  const ds = n => new Date(n*DAY).toISOString().slice(0,10);
+  const todayStr = () => { const t = new Date(); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); };
+  const S = dn(PLAN.start), E = dn(PLAN.end);
+  const planAt = n => n <= S ? PLAN.from : n >= E ? PLAN.to : PLAN.from - (PLAN.from-PLAN.to)*(n-S)/(E-S);
+  const neededPerWeek = (PLAN.from-PLAN.to)/((E-S)/7);
+  const fmtDate = d3.utcFormat("%-d %b");
+  const fmtDay = d3.utcFormat("%a %-d %b");
+  const toD = n => new Date(n*DAY);
+  const f1 = x => x.toFixed(1);
+  const fInt = d3.format(",");
+  const defaultSess = s => { const w = new Date(dn(s)*DAY).getUTCDay(); return w===1||w===4 ? "upper" : (w===2||w===5 ? "lower" : "rest"); };
+  const kcalTarget = e => (e.session==="upper"||e.session==="lower") ? PLAN.gymKcal : (e.session==="rest" ? PLAN.restKcal : (defaultSess(e.date)==="rest"?PLAN.restKcal:PLAN.gymKcal));
+
+  let entries = [];          // sorted by date asc
+
+  const $ = id => document.getElementById(id);
+  const form = $("form"), status = $("status");
+
+  // ---------- derived numbers ----------
+  function weighIns(){ return entries.filter(e => typeof e.weight==="number").map(e => ({n:dn(e.date), w:e.weight, date:e.date})); }
+  function avg7At(n, w){ const xs = w.filter(p => p.n<=n && p.n>n-7); return xs.length ? d3.mean(xs,p=>p.w) : null; }
+  function slopePerDay(w){
+    if(!w.length) return null;
+    const last = w[w.length-1].n;
+    const xs = w.filter(p => p.n > last-14);
+    if(xs.length < 4 || xs[xs.length-1].n - xs[0].n < 5) return null;
+    const mx = d3.mean(xs,p=>p.n), my = d3.mean(xs,p=>p.w);
+    let num=0, den=0; xs.forEach(p=>{num+=(p.n-mx)*(p.w-my); den+=(p.n-mx)**2;});
+    return den ? num/den : null;
+  }
+
+  function renderFinding(){
+    const w = weighIns(), F = $("finding"), figs = $("figs");
+    figs.textContent = "";
+    F.textContent = "";
+    if(!w.length){
+      F.textContent = "Log your first weigh-in to start the line. Weigh yourself in the morning, after the toilet, before food or drink.";
+      return;
+    }
+    const last = w[w.length-1], avg = avg7At(last.n, w), plan = planAt(last.n), diff = avg - plan;
+    const slope = slopePerDay(w), wk = slope!=null ? slope*7 : null;
+    const ahead = diff <= 0;
+    const parts = [];
+    const add = (t,bold) => { const el = document.createElement(bold?"b":"span"); el.textContent = t; F.appendChild(el); };
+    if(Math.abs(diff) < 0.15){ add("You're "); add("on plan",1); add(" at "+f1(avg)+" kg. "); }
+    else { add("You're "); add(f1(Math.abs(diff))+" kg "+(ahead?"ahead of":"behind")+" plan",1); add(" at "+f1(avg)+" kg. "); }
+    if(wk!=null && slope < 0){
+      const eta = last.n + (avg - PLAN.to)/(-slope);
+      const late = eta > E + 0.5;
+      add("At your last two weeks' pace you'd reach 67 kg on ");
+      add(fmtDate(toD(Math.round(eta))) + (new Date(Math.round(eta)*DAY).getUTCFullYear()>2027?" "+new Date(Math.round(eta)*DAY).getUTCFullYear():""),1);
+      add(late ? ". Add 2k steps a day before you cut food." : ".");
+    } else if(wk!=null){
+      add("Your weight hasn't trended down over the last two weeks. ");
+      add("Add 2k steps a day first, then drop about 150 kcal if it still stalls.",1);
+    } else {
+      add("Keep weighing in daily. Your pace shows after about a week of entries.");
+    }
+    const fig = (dd, dt) => { const d = document.createElement("div"); const a=document.createElement("dd"); a.className="num"; a.textContent=dd; const b=document.createElement("dt"); b.textContent=dt; d.append(a,b); figs.appendChild(d); };
+    fig(f1(avg)+" kg","7-day average");
+    fig(f1(Math.max(0,avg-PLAN.to))+" kg","to go");
+    fig(wk!=null ? (wk<=0?"−":"+")+f1(Math.abs(wk))+" kg" : "—","per week, 14-day trend");
+    fig("−"+f1(neededPerWeek)+" kg","per week needed");
+    const remain = Math.max(0, Math.ceil((E - dn(todayStr()))));
+    fig(remain+" days","until 1 Feb");
+  }
+
+  // ---------- tooltip helper ----------
+  function tip(container){
+    let t = container.querySelector(".tip");
+    if(!t){ t = document.createElement("div"); t.className="tip"; container.appendChild(t); }
+    return {
+      show(lines, x, y){
+        t.textContent=""; lines.forEach((l,i)=>{ const row=document.createElement("div"); if(i===0){const b=document.createElement("b"); b.textContent=l; row.appendChild(b);} else row.textContent=l; t.appendChild(row); });
+        t.classList.add("on");
+        const cw = container.clientWidth, tw = t.offsetWidth, th = t.offsetHeight;
+        let left = x + 12; if(left + tw > cw) left = x - tw - 12; if(left < 0) left = 0;
+        let top = y - th - 10; if(top < 0) top = y + 14;
+        t.style.left = left+"px"; t.style.top = top+"px";
+      },
+      hide(){ t.classList.remove("on"); }
+    };
+  }
+
+  // ---------- weight chart ----------
+  function drawWeight(){
+    const box = $("weight-chart"); const W = box.clientWidth; if(!W) return;
+    const H = Math.max(240, Math.min(380, W*0.55));
+    const m = {t:12,r:12,b:28,l:36};
+    d3.select(box).select("svg").remove();
+    const svg = d3.select(box).append("svg").attr("width",W).attr("height",H).attr("role","img").attr("aria-label","Weight against plan");
+    const w = weighIns();
+    const lastN = Math.max(E, w.length ? w[w.length-1].n : E);
+    const firstN = Math.min(S, w.length ? w[0].n : S);
+    const x = d3.scaleUtc().domain([toD(firstN-1), toD(lastN+1)]).range([m.l, W-m.r]);
+    const lo = Math.min(66, d3.min(w,p=>p.w) ?? 66) - 0.3, hi = Math.max(78, d3.max(w,p=>p.w) ?? 78) + 0.3;
+    const y = d3.scaleLinear().domain([lo,hi]).nice().range([H-m.b, m.t]);
+    const g = svg.append("g");
+    g.append("g").selectAll("line").data(y.ticks(6)).join("line").attr("class","gridline").attr("x1",m.l).attr("x2",W-m.r).attr("y1",d=>y(d)).attr("y2",d=>y(d));
+    g.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(x).ticks(W<500?4:8).tickFormat(d3.utcFormat("%-d %b")).tickSize(0).tickPadding(10));
+    g.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSize(0).tickPadding(8));
+    // plan
+    g.append("line").attr("x1",x(toD(S))).attr("y1",y(PLAN.from)).attr("x2",x(toD(E))).attr("y2",y(PLAN.to)).attr("stroke","var(--ink)").attr("stroke-width",1.5).attr("stroke-dasharray","4 3").attr("opacity",.55);
+    if(lastN>E) g.append("line").attr("x1",x(toD(E))).attr("x2",x(toD(lastN))).attr("y1",y(PLAN.to)).attr("y2",y(PLAN.to)).attr("stroke","var(--ink)").attr("stroke-dasharray","4 3").attr("opacity",.3);
+    g.append("text").attr("x",x(toD(E))).attr("y",y(PLAN.to)+18).attr("text-anchor","end").attr("fill","var(--ink2)").attr("font-size",12).text("67 kg, 1 Feb");
+    // today marker
+    const tn = dn(todayStr());
+    if(tn>=S && tn<=lastN) g.append("line").attr("x1",x(toD(tn))).attr("x2",x(toD(tn))).attr("y1",m.t).attr("y2",H-m.b).attr("stroke","var(--ink)").attr("opacity",.12);
+    // dots
+    g.append("g").selectAll("circle").data(w).join("circle").attr("cx",p=>x(toD(p.n))).attr("cy",p=>y(p.w)).attr("r",3).attr("fill","var(--ink2)").attr("opacity",.55);
+    // 7-day avg
+    const av = w.map(p=>({n:p.n, a:avg7At(p.n,w)}));
+    g.append("path").datum(av).attr("fill","none").attr("stroke","var(--accent)").attr("stroke-width",2.75).attr("stroke-linejoin","round").attr("stroke-linecap","round")
+      .attr("d", d3.line().x(p=>x(toD(p.n))).y(p=>y(p.a)));
+    if(av.length) g.append("circle").attr("cx",x(toD(av[av.length-1].n))).attr("cy",y(av[av.length-1].a)).attr("r",5).attr("fill","var(--accent)");
+    // hover
+    const T = tip(box), cross = g.append("line").attr("stroke","var(--ink)").attr("opacity",0).attr("y1",m.t).attr("y2",H-m.b);
+    svg.append("rect").attr("x",m.l).attr("y",m.t).attr("width",W-m.l-m.r).attr("height",H-m.t-m.b).attr("fill","transparent")
+      .on("pointermove", ev => {
+        const [px] = d3.pointer(ev); const n = Math.round(x.invert(px).getTime()/DAY);
+        const near = w.length ? w.reduce((a,b)=>Math.abs(b.n-n)<Math.abs(a.n-n)?b:a) : null;
+        const use = near && Math.abs(near.n-n)<=2 ? near.n : n;
+        cross.attr("x1",x(toD(use))).attr("x2",x(toD(use))).attr("opacity",.35);
+        const lines=[fmtDay(toD(use))];
+        if(near && near.n===use){ lines.push("Weigh-in "+f1(near.w)+" kg"); lines.push("7-day avg "+f1(avg7At(use,w))+" kg"); }
+        lines.push("Plan "+f1(planAt(use))+" kg");
+        T.show(lines, x(toD(use)), near && near.n===use ? y(near.w) : y(planAt(use)));
+      })
+      .on("pointerleave", () => { T.hide(); cross.attr("opacity",0); });
+  }
+
+  // ---------- bar charts ----------
+  function drawBars(id, key, targetFn, fmt, unit){
+    const box = $(id); const W = box.clientWidth; if(!W) return;
+    const H = 180, m = {t:10,r:8,b:24,l:42};
+    d3.select(box).select("svg").remove();
+    const end = dn(todayStr()), start = end-20;
+    const days = d3.range(start, end+1);
+    const map = new Map(entries.map(e=>[e.date,e]));
+    const rows = days.map(n => { const s = ds(n), e = map.get(s) || {date:s}; return {n, s, v: typeof e[key]==="number" ? e[key] : null, t: targetFn(e)}; });
+    const svg = d3.select(box).append("svg").attr("width",W).attr("height",H).attr("role","img").attr("aria-label",key+" last 21 days");
+    const x = d3.scaleBand().domain(days).range([m.l, W-m.r]).padding(.25);
+    const max = Math.max(d3.max(rows,r=>r.v)||0, d3.max(rows,r=>r.t)) * 1.1;
+    const y = d3.scaleLinear().domain([0,max]).nice(4).range([H-m.b, m.t]);
+    svg.append("g").selectAll("line").data(y.ticks(4)).join("line").attr("class","gridline").attr("x1",m.l).attr("x2",W-m.r).attr("y1",d=>y(d)).attr("y2",d=>y(d));
+    svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(0).tickPadding(6).tickFormat(d3.format("~s")));
+    svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-m.b})`).call(d3.axisBottom(x).tickValues(days.filter((d,i)=>i%7===0||i===20)).tickFormat(n=>fmtDate(toD(n))).tickSize(0).tickPadding(8));
+    const good = r => key==="kcal" ? r.v <= r.t + 50 : r.v >= r.t;
+    svg.append("g").selectAll("rect").data(rows.filter(r=>r.v!=null)).join("rect")
+      .attr("x",r=>x(r.n)).attr("width",x.bandwidth()).attr("y",r=>y(r.v)).attr("height",r=>y(0)-y(r.v)).attr("rx",2)
+      .attr("fill",r=>good(r)?"var(--ink)":"var(--accent)");
+    svg.append("g").selectAll("line").data(rows).join("line")
+      .attr("x1",r=>x(r.n)-1).attr("x2",r=>x(r.n)+x.bandwidth()+1).attr("y1",r=>y(r.t)).attr("y2",r=>y(r.t))
+      .attr("stroke","var(--ink)").attr("stroke-width",2).attr("opacity",.35);
+    const T = tip(box);
+    svg.append("g").selectAll("rect").data(rows).join("rect").attr("x",r=>x(r.n)-x.step()*x.paddingInner()/2).attr("width",x.step()).attr("y",m.t).attr("height",H-m.t-m.b).attr("fill","transparent")
+      .on("pointerenter pointermove", (ev,r) => T.show([fmtDay(toD(r.n)), r.v==null ? "Not logged" : fmt(r.v)+unit, "Target "+fmt(r.t)+unit], x(r.n)+x.bandwidth()/2, r.v==null? y(r.t) : y(r.v)))
+      .on("pointerleave", () => T.hide());
+  }
+
+  function renderSubs(){
+    const end = dn(todayStr());
+    const wk = entries.filter(e => dn(e.date) > end-7 && dn(e.date) <= end);
+    const setSub = (id, text, val) => { const el=$(id); el.textContent=""; if(val==null){ el.textContent=text; return; } const a=document.createElement("span"); a.textContent="7-day average "; const b=document.createElement("b"); b.textContent=val; const c=document.createElement("span"); c.textContent=text; el.append(a,b,c); };
+    const kc = wk.filter(e=>typeof e.kcal==="number");
+    if(kc.length){ const a=d3.mean(kc,e=>e.kcal), t=d3.mean(kc,e=>kcalTarget(e)); setSub("kcal-sub", " against a "+fInt(Math.round(t))+" target. Orange days went over.", fInt(Math.round(a))+" kcal"); }
+    else setSub("kcal-sub","Last 21 days. Ticks mark each day's target: 2100 on gym days, 1800 on rest days.");
+    const pr = wk.filter(e=>typeof e.protein==="number");
+    if(pr.length){ const hit = pr.filter(e=>e.protein>=PLAN.protein).length; setSub("protein-sub", ". Hit 160 g on "+hit+" of "+pr.length+" logged days.", Math.round(d3.mean(pr,e=>e.protein))+" g"); }
+    else setSub("protein-sub","Last 21 days against 160 g.");
+    const st = wk.filter(e=>typeof e.steps==="number");
+    if(st.length){ setSub("steps-sub", " against 10,500.", fInt(Math.round(d3.mean(st,e=>e.steps)))); }
+    else setSub("steps-sub","Last 21 days against 10,500.");
+    const sess = wk.filter(e=>e.session==="upper"||e.session==="lower").length;
+    $("weight-sub").textContent = "The dashed line is where the plan says you should be each day. " + (wk.length ? "Gym sessions this week: "+sess+" of 4." : "");
+  }
+
+  function renderTable(){
+    const box = $("table"); box.textContent = "";
+    if(!entries.length){ const p=document.createElement("p"); p.className="empty"; p.textContent="Nothing logged yet. Your days will show up here."; box.appendChild(p); return; }
+    const tbl = document.createElement("table"), thead=document.createElement("thead"), hr=document.createElement("tr");
+    ["Day","Weight","Calories","Protein","Steps","Session"].forEach(h=>{const th=document.createElement("th"); th.textContent=h; hr.appendChild(th);});
+    thead.appendChild(hr); tbl.appendChild(thead);
+    const tb=document.createElement("tbody");
+    entries.slice().reverse().slice(0,28).forEach(e=>{
+      const tr=document.createElement("tr"); tr.tabIndex=0;
+      const cell=(v,miss)=>{const td=document.createElement("td"); td.textContent=v; if(miss) td.className="miss"; tr.appendChild(td);};
+      cell(fmtDay(toD(dn(e.date))));
+      cell(typeof e.weight==="number"?f1(e.weight)+" kg":"—", typeof e.weight!=="number");
+      cell(typeof e.kcal==="number"?fInt(e.kcal):"—", typeof e.kcal!=="number");
+      cell(typeof e.protein==="number"?e.protein+" g":"—", typeof e.protein!=="number");
+      cell(typeof e.steps==="number"?fInt(e.steps):"—", typeof e.steps!=="number");
+      cell(e.session ? e.session[0].toUpperCase()+e.session.slice(1) : "—", !e.session);
+      const open=()=>{ loadDate(e.date); $("log-day").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"}); };
+      tr.addEventListener("click",open); tr.addEventListener("keydown",ev=>{ if(ev.key==="Enter") open(); });
+      tb.appendChild(tr);
+    });
+    tbl.appendChild(tb); box.appendChild(tbl);
+  }
+
+  function renderAll(){
+    renderFinding(); renderSubs(); renderTable();
+    drawWeight();
+    drawBars("kcal-chart","kcal",kcalTarget,v=>fInt(Math.round(v))," kcal");
+    drawBars("protein-chart","protein",()=>PLAN.protein,v=>Math.round(v)," g");
+    drawBars("steps-chart","steps",()=>PLAN.steps,v=>fInt(Math.round(v)),"");
+  }
+
+  // ---------- form ----------
+  function loadDate(s){
+    $("f-date").value = s;
+    const e = entries.find(x=>x.date===s);
+    $("f-weight").value = e && e.weight!=null ? e.weight : "";
+    $("f-kcal").value = e && e.kcal!=null ? e.kcal : "";
+    $("f-protein").value = e && e.protein!=null ? e.protein : "";
+    $("f-steps").value = e && e.steps!=null ? e.steps : "";
+    const sess = (e && e.session) || defaultSess(s);
+    form.querySelectorAll('input[name=sess]').forEach(r=>r.checked = r.value===sess);
+    $("del").hidden = !e;
+    $("save").textContent = e ? "Update day" : "Save day";
+  }
+  $("f-date").addEventListener("change", ev => { if(ev.target.value) loadDate(ev.target.value); });
+
+  function say(msg, err){ status.textContent = msg; status.classList.toggle("err", !!err); }
+  const numOrNull = (id, int) => { const v = $(id).value.trim(); if(v==="") return null; const n = Number(v.replace(",",".")); return isFinite(n) ? (int?Math.round(n):Math.round(n*10)/10) : NaN; };
+
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const date = $("f-date").value;
+    if(!date){ say("Pick a date first.", 1); return; }
+    const rec = {date, weight:numOrNull("f-weight"), kcal:numOrNull("f-kcal",1), protein:numOrNull("f-protein",1), steps:numOrNull("f-steps",1),
+      session:(form.querySelector('input[name=sess]:checked')||{}).value || null};
+    if([rec.weight,rec.kcal,rec.protein,rec.steps].some(Number.isNaN)){ say("One of the numbers isn't a number. Check the fields and save again.",1); return; }
+    if(rec.weight!=null && (rec.weight<30||rec.weight>200)){ say("That weight looks off. Enter it in kg, like 76.4.",1); return; }
+    rec.updated = new Date().toISOString();
+    $("save").disabled = true;
+    upsertLocal(rec);
+    if(persist()) say("Saved "+fmtDay(toD(dn(date)))+".");
+    $("save").disabled = false; $("del").hidden = false; $("save").textContent = "Update day";
+    renderAll();
+  });
+
+  $("del").addEventListener("click", async () => {
+    const date = $("f-date").value; if(!date) return;
+    if($("del").dataset.armed!=="1"){ $("del").dataset.armed="1"; $("del").textContent="Tap again to delete"; setTimeout(()=>{ $("del").dataset.armed=""; $("del").textContent="Delete day"; },3000); return; }
+    $("del").dataset.armed=""; $("del").textContent="Delete day";
+    entries = entries.filter(e=>e.date!==date);
+    if(persist()) say("Deleted "+fmtDay(toD(dn(date)))+".");
+    loadDate(date); renderAll();
+  });
+
+  function upsertLocal(rec){
+    entries = entries.filter(e=>e.date!==rec.date).concat([rec]).sort((a,b)=>a.date<b.date?-1:1);
+  }
+  function clean(d, id){
+    const n = v => typeof v==="number" && isFinite(v) ? v : null;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(d.date||"") ? d.date : id;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    return {date, weight:n(d.weight), kcal:n(d.kcal), protein:n(d.protein), steps:n(d.steps), session:["upper","lower","rest"].includes(d.session)?d.session:null};
+  }
+
+  // ---------- start ----------
+  let rT; const ro = new ResizeObserver(()=>{ clearTimeout(rT); rT=setTimeout(()=>{ drawWeight(); drawBars("kcal-chart","kcal",kcalTarget,v=>fInt(Math.round(v))," kcal"); drawBars("protein-chart","protein",()=>PLAN.protein,v=>Math.round(v)," g"); drawBars("steps-chart","steps",()=>PLAN.steps,v=>fInt(Math.round(v)),""); },80); });
+  ro.observe(document.querySelector(".wrap"));
+
+  // ---------- storage: this device ----------
+  const KEY = "cut-log-v1";
+  function persist(){
+    try { localStorage.setItem(KEY, JSON.stringify(entries)); return true; }
+    catch(e){ say("Couldn't save on this device. Download a backup so nothing is lost.",1); return false; }
+  }
+  try {
+    const raw = localStorage.getItem(KEY);
+    if(raw){ entries = JSON.parse(raw).map(d=>clean(d||{}, d&&d.date)).filter(Boolean).sort((a,b)=>a.date<b.date?-1:1); }
+  } catch(e){ say("Your saved log couldn't be read on this device.",1); }
+  loadDate(todayStr()); renderAll();
+
+  $("export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({app:"cut-tracker", exported:new Date().toISOString(), entries}, null, 1)], {type:"application/json"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "cut-log-"+todayStr()+".json";
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 1000);
+    say("Backup downloaded with "+entries.length+" days.");
+  });
+  $("import").addEventListener("change", async ev => {
+    const f = ev.target.files && ev.target.files[0]; if(!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      const list = (Array.isArray(data) ? data : data.entries || []).map(d=>clean(d||{}, d&&d.date)).filter(Boolean);
+      if(!list.length){ say("That file has no days in it.",1); return; }
+      list.forEach(upsertLocal); persist();
+      say("Restored "+list.length+" days from the backup."); loadDate($("f-date").value || todayStr()); renderAll();
+    } catch(e){ say("That file isn't a backup from this page.",1); }
+    ev.target.value = "";
+  });
+})();
+</script>
+</body>
+</html>
