@@ -231,7 +231,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     </div>
     <h3 class="rg-title">Last 14 days</h3>
     <div class="rgrid" id="r-grid"></div>
-    <div class="actions"><button type="button" class="solid" id="r-edit">Edit items</button></div>
+    <div class="actions"><button type="button" class="solid" id="r-edit">Edit items</button><button type="button" class="solid" id="r-post" hidden>Accutane finished: switch routine</button></div>
   </section>
 
   <div class="trio" data-tab="progress">
@@ -565,21 +565,27 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   // ---------- routine checklist ----------
   const RKEY = "cut-routine-v1";
   const rid = () => Math.random().toString(36).slice(2,9);
-  const defaultItems = () => ({
-    am:["Brush teeth","Face wash","Moisturiser","Sunscreen","Lip balm"].map(name=>({id:rid(),name})),
-    pm:["Shower","Brush teeth","Floss","Face wash","Moisturiser","Lip balm","Accutane","Vitamins"].map(name=>({id:rid(),name}))
-  });
+  const PLAN_AM = [["Brush teeth",["brush teeth"]],["Rinse face",["rinse face","face wash"]],["Moisturiser",["moisturiser"]],["Sunscreen",["sunscreen"]],["Lip balm",["lip balm"]],["Creatine",["creatine"]]];
+  const PLAN_PM = [["Shower",["shower","shower / bath"]],["Brush teeth",["brush teeth"]],["Floss",["floss"]],["Jelly Joker",["jelly joker","face wash","cleanser"]],["Baume B5",["baume b5","moisturiser"]],["Lip balm (Baume)",["lip balm (baume)","lip balm"]],["Accutane",["accutane"]],["D3 + K2",["d3 + k2","vitamins"]],["Omega-3",["omega-3"]],["Magnesium",["magnesium"]],["Deep Space",["deep space"]]];
+  const defaultItems = () => ({ am: PLAN_AM.map(([name])=>({id:rid(),name})), pm: PLAN_PM.map(([name])=>({id:rid(),name})) });
+  // Rebuild a part to the plan, reusing ids of matching old items so history is kept; unknown old items are kept at the end.
+  function toPlan(oldList, plan){
+    const left = oldList.slice(), out = [];
+    plan.forEach(([name, aliases]) => {
+      const i = left.findIndex(it => aliases.includes(it.name.trim().toLowerCase()));
+      if(i>=0){ const it = left.splice(i,1)[0]; out.push({id:it.id, name}); } else out.push({id:rid(), name});
+    });
+    return out.concat(left);
+  }
   let routine = {items:defaultItems(), days:{}};
   let rEditing = false;
-  try { const raw = localStorage.getItem(RKEY); if(raw){ const r = JSON.parse(raw); if(r && r.items && Array.isArray(r.items.am) && Array.isArray(r.items.pm)) routine = {items:r.items, days:r.days||{}, vitPm:!!r.vitPm, accPm:!!r.accPm}; } } catch(e){}
-  // one-time moves: these belong in the evening
-  function toPm(name, flag){
-    if(routine[flag]) return;
-    const i = routine.items.am.findIndex(it => it.name.trim().toLowerCase()===name);
-    if(i>=0 && !routine.items.pm.some(it => it.name.trim().toLowerCase()===name)) routine.items.pm.push(routine.items.am.splice(i,1)[0]);
-    routine[flag] = true;
+  try { const raw = localStorage.getItem(RKEY); if(raw){ const r = JSON.parse(raw); if(r && r.items && Array.isArray(r.items.am) && Array.isArray(r.items.pm)) routine = {items:r.items, days:r.days||{}, v2:!!r.v2}; } } catch(e){}
+  // one-time: match the skincare + supplement plan (13 Nov)
+  if(!routine.v2){
+    routine.items = { am: toPlan(routine.items.am, PLAN_AM), pm: toPlan(routine.items.pm, PLAN_PM) };
+    routine.v2 = true;
+    try{ localStorage.setItem(RKEY, JSON.stringify(routine)); }catch(e){}
   }
-  toPm("vitamins","vitPm"); toPm("accutane","accPm");
   function rSave(){ try{ localStorage.setItem(RKEY, JSON.stringify(routine)); }catch(e){ say("Couldn't save the routine on this device.",1); } }
   const rDate = $("r-date");
   rDate.value = todayStr();
@@ -648,7 +654,21 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   function setPart(p){ rcols.dataset.part = p; document.querySelectorAll('input[name=rpart]').forEach(r => r.checked = r.value===p); }
   document.querySelectorAll('input[name=rpart]').forEach(r => r.addEventListener("change", () => setPart(r.value)));
   setPart(new Date().getHours() < 15 ? "am" : "pm");
-  function rRender(){ rList("am"); rList("pm"); rSub(); rGrid(); $("r-edit").textContent = rEditing ? "Done editing" : "Edit items"; }
+  function rRender(){ rList("am"); rList("pm"); rSub(); rGrid(); $("r-edit").textContent = rEditing ? "Done editing" : "Edit items";
+    $("r-post").hidden = !(rEditing && routine.items.pm.some(it => it.name.trim().toLowerCase()==="accutane")); }
+  $("r-post").addEventListener("click", () => {
+    const b = $("r-post");
+    if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Tap again to confirm"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Accutane finished: switch routine"; },3000); return; }
+    b.dataset.armed="";
+    const pm = routine.items.pm, i = pm.findIndex(it => it.name.trim().toLowerCase()==="accutane");
+    if(i>=0) pm.splice(i,1);
+    const jj = pm.findIndex(it => it.name==="Jelly Joker");
+    pm.splice(jj>=0 ? jj+1 : pm.length, 0, {id:rid(), name:"Tretinoin"});
+    const am = routine.items.am, r = am.findIndex(it => it.name==="Rinse face");
+    am.splice(r>=0 ? r+1 : am.length, 0, {id:rid(), name:"Azelaic acid (from week 5)"});
+    const m = am.find(it => it.name==="Moisturiser"); if(m) m.name = "Hydration Station";
+    rSave(); rEditing = false; rRender(); say("Routine switched: Tretinoin added at night, azelaic acid in the morning.");
+  });
   rDate.addEventListener("change", () => { if(!rDate.value) rDate.value = todayStr(); rRender(); });
   $("r-prev").addEventListener("click", () => { rDate.value = ds(dn(rDate.value)-1); rRender(); });
   $("r-next").addEventListener("click", () => { rDate.value = ds(dn(rDate.value)+1); rRender(); });
