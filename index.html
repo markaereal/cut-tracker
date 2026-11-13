@@ -490,7 +490,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     $("f-kcal").value = e && e.kcal!=null ? e.kcal : "";
     $("f-protein").value = e && e.protein!=null ? e.protein : "";
     $("f-steps").value = e && e.steps!=null ? e.steps : "";
-    const sess = (e && e.session) || defaultSess(s);
+    const sess = (e && e.session) || null;
     form.querySelectorAll('input[name=sess]').forEach(r=>r.checked = r.value===sess);
     $("del").hidden = !e;
     $("save").textContent = e ? "Update day" : "Save day";
