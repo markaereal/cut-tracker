@@ -25,6 +25,9 @@
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
+html,body{max-width:100%;overflow-x:hidden}
+.grid>*,.trio>*,.panel,form,.pair>div{min-width:0}
+form input,.rdate input{max-width:100%}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:Archivo,system-ui,sans-serif;font-size:17px;line-height:1.5;-webkit-tap-highlight-color:transparent}
 ::selection{background:var(--accent);color:#fff}
 input,button,select{font:inherit;color:inherit}
