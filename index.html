@@ -177,7 +177,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
         <label for="f-date">Date</label>
         <input id="f-date" type="date" required>
         <label for="f-weight">Morning weight <span>kg</span></label>
-        <input id="f-weight" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="e.g. 76.4">
+        <input id="f-weight" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 76,4">
         <div class="pair">
           <div><label for="f-kcal">Calories <span>Yazio</span></label>
           <input id="f-kcal" type="number" inputmode="numeric" step="1" min="0" max="9000" placeholder="1950"></div>
@@ -486,7 +486,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   function loadDate(s){
     $("f-date").value = s;
     const e = entries.find(x=>x.date===s);
-    $("f-weight").value = e && e.weight!=null ? e.weight : "";
+    $("f-weight").value = e && e.weight!=null ? String(e.weight).replace(".", ",") : "";
     $("f-kcal").value = e && e.kcal!=null ? e.kcal : "";
     $("f-protein").value = e && e.protein!=null ? e.protein : "";
     $("f-steps").value = e && e.steps!=null ? e.steps : "";
@@ -498,7 +498,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   $("f-date").addEventListener("change", ev => { if(ev.target.value) loadDate(ev.target.value); });
 
   function say(msg, err){ status.textContent = msg; status.classList.toggle("err", !!err); }
-  const numOrNull = (id, int) => { const v = $(id).value.trim(); if(v==="") return null; const n = Number(v.replace(",",".")); return isFinite(n) ? (int?Math.round(n):Math.round(n*10)/10) : NaN; };
+  const numOrNull = (id, int) => { const v = $(id).value.trim(); if(v==="") return null; const n = Number(v.replace(/\s/g,"").replace(",",".")); return isFinite(n) ? (int?Math.round(n):Math.round(n*10)/10) : NaN; };
 
   form.addEventListener("submit", async ev => {
     ev.preventDefault();
